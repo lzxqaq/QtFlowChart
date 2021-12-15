@@ -32,10 +32,39 @@ void QrgChartDialog::initOrgChartDialog()
     m_view->setDragMode(QGraphicsView::RubberBandDrag);
     m_view->setContextMenuPolicy(Qt::ActionsContextMenu);
 
-    Node *node = new Node;
-    node->setText({"Node", "Node2"});
+    Node *node = new Node(m_scene);
+    node->setText({"Nodsssse", "Nasdfasdfsafddddddddode2"});
     node->setPos(m_scene->width() / 2.0, m_scene->height() / 2.0 - 100);
     m_scene->addItem(node);
+
+    Node *node1 = new Node(m_scene);
+    Node *node2 = new Node(m_scene);
+    node1->setText({"node1", "Nasdfasdfsafddddddddode2"});
+    node2->setText({"node2", "Nasdfasdfsafddddddddode2"});
+    Node *node3 = new Node(m_scene);
+    Node *node4 = new Node(m_scene);
+    Node *node5 = new Node(m_scene);
+    Node *node6 = new Node(m_scene);
+    Node *node7 = new Node(m_scene);
+    Node *node8 = new Node(m_scene);
+    node3->setText({"node3", "Nasdfasdfsafddddddddode2"});
+    node4->setText({"node4", "Nasdfasdfsafddddddddode2"});
+    node5->setText({"node5", "Nasdfasdfsafddddddddode2"});
+    node6->setText({"node6", "Nasdfasdfsafddddddddode2"});
+    node7->setText({"node7", "Nasdfasdfsafddddddddode2"});
+    node8->setText({"node8", "Nasdfasdfsafddddddddode2"});
+
+    node->addParent(node1);
+    node->addParent(node2);
+    node->addParent(node3);
+
+
+//    node1->addParent(node3);
+    node1->addParent(node5);
+    node2->addParent(node4);
+    node2->addParent(node6);
+    node2->addParent(node7);
+    node2->addParent(node8);
 
     QHBoxLayout *hLayout = new QHBoxLayout();
     hLayout->addWidget(m_view);
@@ -81,8 +110,8 @@ void QrgChartDialog::onAdd()
     if (!fromNode)
         return;
 
-    Node *node = new Node;
-    node->setText({"Node", "Node2", "Node3", "Node3"});
+    Node *node = new Node(m_scene);
+    node->setText({"Node", "Nsssssssssssssode2", "Noddddddddddddddddde3", "Node3"});
     QList<Link *> linkList = fromNode->getLinkList();
     if (linkList.isEmpty()) {
         node->setPos(m_scene->width() / 2.0, m_scene->height() / 2.0 + 100);
@@ -102,8 +131,6 @@ void QrgChartDialog::onAdd()
         m_scene->addItem(node);
     }
 
-    Link *newLink = new Link(fromNode, node);
-    m_scene->addItem(newLink);
 }
 
 void QrgChartDialog::onDelete()

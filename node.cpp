@@ -2,7 +2,13 @@
 #include "node.h"
 #include "link.h"
 
-Node::Node()
+static const double AddHeight = 100.0;
+static const double AddWidth = 100.0;
+
+
+Node::Node(QGraphicsScene *scene)
+    :   m_scene(scene)
+    ,   m_width(50)
 {
     this->setFlags(ItemIsMovable | ItemIsSelectable | ItemSendsGeometryChanges);
     this->setAcceptHoverEvents(true);
@@ -16,9 +22,80 @@ Node::~Node()
 
 void Node::setText(const QStringList &text)
 {
-    m_text = text;
+    m_texts = text;
+
+    QString maxString;
+    for (QString string : m_texts)
+    {
+        if (string.size() > maxString.size()) maxString = string;
+    }
+    QFontMetricsF metrics = (QFontMetricsF)qApp->font();
+
+    m_width = metrics.boundingRect(maxString).width();
 
     prepareGeometryChange();
+}
+
+void Node::addParent(Node *parent)
+{
+    QPointF thisP = this->pos();
+    QPointF nextP;
+    nextP.setY(thisP.y() - AddHeight);
+    int parentCount = m_parents.size();
+    qreal addWidth = (parentCount / 2 + 1) * AddWidth;
+
+    int i = parentCount % 2 == 0 ? -1 : 1;//偶数加在左 奇数加在右
+
+    nextP.setX(thisP.x() + i * addWidth);
+
+    m_parents.append(parent);
+    if (!parent->m_childs.contains(this))
+    {
+        parent->m_childs.append(this);
+    }
+
+    parent->setPos(nextP);
+
+    if (!m_scene->collidingItems(parent).isEmpty() || m_scene->itemAt(nextP, QTransform()) != nullptr)
+    {
+        if (i == -1)
+        {
+            nextP.setX(thisP.x() + addWidth);
+        }
+        else
+        {
+            nextP.setX(thisP.x() - addWidth - AddWidth);
+
+        }
+        QPointF pos = this->pos();
+        this->setPos(pos.x() - i * 2 * AddWidth, pos.y());
+    }
+
+    parent->setPos(nextP);
+
+
+
+    m_scene->addItem(parent);
+
+    Link *newLink = new Link(this, parent);
+    m_scene->addItem(newLink);
+}
+
+void Node::addChild(Node *child)
+{
+    QPointF next = nextChildP();
+
+    m_childs.append(child);
+    if (!child->m_parents.contains(this))
+    {
+        child->m_parents.append(this);
+    }
+
+    child->setPos(next);
+    m_scene->addItem(child);
+
+    Link *newLink = new Link(child, this);
+    m_scene->addItem(newLink);
 }
 
 void Node::addLink(Link *link)
@@ -38,14 +115,21 @@ QList<Link *> Node::getLinkList()
 
 QRectF Node::outlineRect() const
 {
-    if (m_text.size() <=0) return QRectF();
+    if (m_texts.size() <=0) return QRectF();
+
 
     QFontMetricsF metrics = (QFontMetricsF)qApp->font();
-    QRectF rect = metrics.boundingRect(m_text.at(0));
+    QString maxString;
+    for (QString string : m_texts)
+    {
+        if (string.size() > maxString.size()) maxString = string;
+    }
+
+    QRectF rect = metrics.boundingRect(maxString);
     rect.adjust(-10, -10, +20, +10);
     rect.translate(-rect.center());
 
-    int size = m_text.size();
+    int size = m_texts.size();
 
     return QRectF(rect.x(), rect.y(), rect.width(), rect.height() * size);
 }
@@ -78,12 +162,14 @@ void Node::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWid
     QRectF rect = outlineRect();
     painter->drawRect(rect);
 
-    int size = m_text.size();
+    int size = m_texts.size();
 
     qreal x = rect.x();
     qreal y = rect.y();
     qreal w = rect.width();
-    qreal h = rect.height() / size;
+    qreal h = rect.height();
+
+    h =  h / size;
 
     qreal x2 = x + w;
     rect = QRectF(x, y, w, h);
@@ -92,10 +178,9 @@ void Node::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWid
     {
         int yy = y + (i + 1) * h;
         painter->drawLine(x, yy, x2, yy);
-        painter->drawText(rect, Qt::AlignCenter, m_text.at(i));
+        painter->drawText(rect, Qt::AlignCenter, m_texts.at(i));
         rect.adjust(0, h, 0, h);
     }
-
 }
 
 QVariant Node::itemChange(GraphicsItemChange change, const QVariant &value)
@@ -119,7 +204,71 @@ void Node::hoverLeaveEvent(QGraphicsSceneHoverEvent */*event*/)
     setCursor(Qt::PointingHandCursor);
 }
 
+QPointF Node::nextChildP()
+{
+    QPointF thisP = this->pos();
+    QPointF nextP;
+    nextP.setY(thisP.y() + AddHeight);
+    int childCount = m_childs.size();
+    qreal addWidth = (childCount / 2 + 1) * AddWidth;
+    if (childCount % 2 == 0)
+    {
+        nextP.setX(thisP.x() - addWidth);
+        if (m_scene->itemAt(nextP, QTransform()) != nullptr)
+        {
+            nextP.setX(nextP.x() - AddWidth);
+            Node *parent = m_parents.at(0);
+            QPointF parentP = parent->pos();
+            parent->setPos(parentP.x() - AddWidth, parentP.y());
+        }
+    }
+    else
+    {
+        nextP.setX(thisP.x() + addWidth);
+        if (m_scene->itemAt(nextP, QTransform()) != nullptr)
+        {
+            nextP.setX(nextP.x() + AddWidth);
+            Node *parent = m_parents.at(0);
+            QPointF parentP = parent->pos();
+            parent->setPos(parentP.x() + AddWidth, parentP.y());
+        }
+    }
+
+    return nextP;
+}
+
+QPointF Node::nextParentP()
+{
+    QPointF thisP = this->pos();
+    QPointF nextP;
+    nextP.setY(thisP.y() - AddHeight);
+    int parentCount = m_parents.size();
+    qreal addWidth = (parentCount / 2 + 1) * AddWidth;
+    if (parentCount % 2 == 0)
+    {
+        nextP.setX(thisP.x() - addWidth);
+        if (m_scene->itemAt(nextP, QTransform()) != nullptr)
+        if (!m_scene->collidingItems(this).isEmpty())
+        {
+            nextP.setX(thisP.x() + addWidth);
+            QPointF pos = this->pos();
+            this->setPos(pos.x() + 2 * AddWidth, pos.y());
+        }
+    }
+    else
+    {
+        nextP.setX(thisP.x() + addWidth);
+        if (m_scene->itemAt(nextP, QTransform()) != nullptr)
+        {
+            nextP.setX(thisP.x() - addWidth - AddWidth);
+            QPointF pos = this->pos();
+            this->setPos(pos.x() - 2 * AddWidth, pos.y());
+        }
+    }
+    return nextP;
+}
+
 QStringList Node::getText() const
 {
-    return m_text;
+    return m_texts;
 }
